@@ -1,0 +1,4 @@
+-I/include
+-DGEKKO
+-std=c++11
+-I/home-ssd/leo/projects/hwtests/common
