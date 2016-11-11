@@ -51,6 +51,33 @@ void TestInsertHook(const s32 fd)
     return;
 }
 
+void TestSetAlternate(const s32 fd)
+{
+  network_printf("Testing SET ALTERNATE\n");
+
+  /*
+  data_addr = cmd_buffer.PayloadBuffer[0].m_Address;
+  bmRequestType = Memory::Read_U8(cmd_buffer.InBuffer[0].m_Address);
+  bmRequest = Memory::Read_U8(cmd_buffer.InBuffer[1].m_Address);
+  wValue = Common::swap16(Memory::Read_U16(cmd_buffer.InBuffer[2].m_Address));
+  wIndex = Common::swap16(Memory::Read_U16(cmd_buffer.InBuffer[3].m_Address));
+  wLength = Common::swap16(Memory::Read_U16(cmd_buffer.InBuffer[4].m_Address));
+  */
+
+  u8 bmRequestType = 0x1;
+  u8 bmRequest = 0xb;
+  u16 wValue = 1;
+  u16 wIndex = 0x1;
+  u16 wLength = 0;
+  u8 unknown = 0;
+  u8 data[] = {};
+
+  const s32 ret = IOS_IoctlvFormat(hId, fd, USBV0_IOCTL_CTRLMSG, "bbhhhb:d", bmRequestType, bmRequest, wValue, wIndex, wLength, unknown, data, 0);
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
+}
+
 int main()
 {
   if (IOS_GetVersion() != 36)
@@ -79,7 +106,16 @@ int main()
   TestGETDEVLIST(fd);
   TestInsertHook(fd);
 
+  const int devicefd = IOS_Open("/dev/usb/oh0/46d/a03", IPC_OPEN_NONE);
+  if (fd < 0)
+  {
+    network_printf("Failed to open /dev/usb/oh0/46d/a03: ret %d\n", fd);
+    return 1;
+  }
+  TestSetAlternate(devicefd);
+
   IOS_Close(fd);
+  IOS_Close(devicefd);
 
   network_printf("Shutting down...\n");
   network_shutdown();
