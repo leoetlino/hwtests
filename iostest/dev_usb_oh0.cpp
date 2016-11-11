@@ -1,3 +1,4 @@
+#include <cstring>
 #include <vector>
 
 #include <ogc/ios.h>
@@ -78,6 +79,25 @@ void TestSetAlternate(const s32 fd)
     return;
 }
 
+void TestUnknown30(const s32 fd)
+{
+  network_printf("Testing USBV0_IOCTL_UNKNOWN_30\n");
+
+  u16 vid = 0x46d;
+  u16 pid = 0xa03;
+  u8 unknown = 0;
+  u8* data = (u8*)iosAlloc(hId, 4);
+  u8 idata[4] = {0x00,0x34,0x00,0xe0};
+  std::memcpy(idata, &data, sizeof(data));
+
+  const s32 ret = IOS_IoctlvFormat(hId, fd, 30, "hhb:d", vid, pid, unknown, data, 4);
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
+
+  network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
+}
+
 int main()
 {
   if (IOS_GetVersion() != 36)
@@ -104,7 +124,8 @@ int main()
   }
 
   TestGETDEVLIST(fd);
-  TestInsertHook(fd);
+  // TestInsertHook(fd);
+  TestUnknown30(fd);
 
   const int devicefd = IOS_Open("/dev/usb/oh0/46d/a03", IPC_OPEN_NONE);
   if (fd < 0)
