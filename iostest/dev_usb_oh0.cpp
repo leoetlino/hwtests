@@ -2,6 +2,7 @@
 
 #include <ogc/ios.h>
 #include <ogc/ipc.h>
+#include <ogc/system.h>
 #include <unistd.h>
 
 #include "hwtests.h"
@@ -31,6 +32,25 @@ void TestGETDEVLIST(const s32 fd)
   network_printf("buffer:\n%s\n", ArrayToString(reinterpret_cast<u8*>(buf.data()), buf.size()).c_str());
 }
 
+// Once the device is plugged in, the two hooks should be triggered immediately
+void TestInsertHook(const s32 fd)
+{
+  network_printf("USBV0_IOCTL_DEVINSERTHOOK (test insert hook)\n");
+
+  u16 vid = 0x46d;
+  u16 pid = 0xa03;
+
+  const s32 ret = IOS_IoctlvFormat(hId, fd, USBV0_IOCTL_DEVINSERTHOOK, "hh", vid, pid);
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
+
+  const s32 ret2 = IOS_IoctlvFormat(hId, fd, USBV0_IOCTL_DEVINSERTHOOK, "hh", vid, pid);
+  network_printf("ret2 = %d\n", ret2);
+  if (ret < 0)
+    return;
+}
+
 int main()
 {
   if (IOS_GetVersion() != 36)
@@ -57,6 +77,7 @@ int main()
   }
 
   TestGETDEVLIST(fd);
+  TestInsertHook(fd);
 
   IOS_Close(fd);
 
