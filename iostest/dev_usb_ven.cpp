@@ -103,6 +103,20 @@ int main()
   {
     const auto& entry = descr_buffer[i];
     network_printf("entry: device_id %x vid %x pid %x token %x\n", entry.device_id, entry.vid, entry.pid, entry.token);
+
+    // Resume device
+    s32* buf = (s32*)iosAlloc(hId, 32);
+    if (!buf)
+    {
+      network_printf("failed to alloc buf to resume device\n");
+      return 1;
+    }
+    buf[0] = entry.device_id;
+    buf[2] = 1;
+    const s32 resume_ret = IOS_Ioctl(fd, USBV5_IOCTL_SUSPEND_RESUME, buf, 32, nullptr, 0);
+    network_printf("resume_ret = %d\n", resume_ret);
+    iosFree(hId, buf);
+
     TestGETDEVPARAMS(fd, entry.device_id);
     network_printf("\n");
   }
