@@ -16,12 +16,12 @@ static s32 hId = -1;
 
 void TestGETDEVLIST(const s32 fd)
 {
-  network_printf("USBV0_IOCTL_GETDEVLIST (listing audio devices)\n");
+  network_printf("USBV0_IOCTL_GETDEVLIST\n");
 
   u8 cntdevs = 0;
   u8 num_descr = 5;
-  const u8 audio_interface_class = 1;
-  std::vector<u32> buf(num_descr << 3);
+  const u8 audio_interface_class = 0;
+  std::vector<u32> buf(num_descr * 8);
 
   const int ret = IOS_IoctlvFormat(hId, fd, USBV0_IOCTL_GETDEVLIST, "bb:dd", num_descr,
                                    audio_interface_class, &cntdevs, sizeof(cntdevs), buf.data(),
@@ -38,8 +38,8 @@ void TestInsertHook(const s32 fd)
 {
   network_printf("USBV0_IOCTL_DEVINSERTHOOK (test insert hook)\n");
 
-  u16 vid = 0x46d;
-  u16 pid = 0xa03;
+  u16 vid = 0x57e;
+  u16 pid = 0x305;
 
   const s32 ret = IOS_IoctlvFormat(hId, fd, USBV0_IOCTL_DEVINSERTHOOK, "hh", vid, pid);
   network_printf("ret = %d\n", ret);
@@ -79,16 +79,45 @@ void TestSetAlternate(const s32 fd)
     return;
 }
 
+void TestUnknown15(const s32 fd)
+{
+  network_printf("Testing USBV0_IOCTL_UNKNOWN_15 (ioctl)\n");
+
+  u8 idata[4] = {0xde,0xad,0xbe,0xef};
+  auto data = (u8*)iosAlloc(hId, sizeof(idata));
+  std::memcpy(idata, &data, sizeof(data));
+
+  const s32 ret = IOS_Ioctl(fd, 15, nullptr, 0, data, sizeof(idata));
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
+
+  network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
+}
+
+void TestGetRhPortStatus20(const s32 fd)
+{
+  network_printf("Testing USBV0_IOCTLV_GETRHPORTSTATUS\n");
+
+  u8 input = 0x1;
+  u8 data[4] = {};
+
+  const s32 ret = IOS_IoctlvFormat(hId, fd, 20, "b:d", input, data, 4);
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
+
+  network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
+}
+
 void TestUnknown30(const s32 fd)
 {
-  network_printf("Testing USBV0_IOCTL_UNKNOWN_30\n");
+  network_printf("Testing USBV0_IOCTLV_DEVINSERTHOOKID\n");
 
-  u16 vid = 0x46d;
-  u16 pid = 0xa03;
+  u16 vid = 0x057e;
+  u16 pid = 0x0308;
   u8 unknown = 0;
-  u8* data = (u8*)iosAlloc(hId, 4);
-  u8 idata[4] = {0x00,0x34,0x00,0xe0};
-  std::memcpy(idata, &data, sizeof(data));
+  u8 data[4] = {1,2,3,4};
 
   const s32 ret = IOS_IoctlvFormat(hId, fd, 30, "hhb:d", vid, pid, unknown, data, 4);
   network_printf("ret = %d\n", ret);
@@ -96,6 +125,18 @@ void TestUnknown30(const s32 fd)
     return;
 
   network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
+}
+
+void TestUnknown31(const s32 fd)
+{
+  network_printf("Testing USBV0_IOCTL_CANCEL_INSERT_HOOK\n");
+
+  u32 vid = 0x057e0308;
+
+  const s32 ret = IOS_Ioctl(fd, 31, &vid, sizeof(vid), nullptr, 0);
+  network_printf("ret = %d\n", ret);
+  if (ret < 0)
+    return;
 }
 
 int main()
@@ -116,27 +157,26 @@ int main()
     return IPC_ENOMEM;
   }
 
-  const int fd = IOS_Open("/dev/usb/oh0", IPC_OPEN_NONE);
+  const s32 fd = IOS_Open("/dev/usb/oh0", IPC_OPEN_NONE);
+  network_printf("IOS_Open(path=/dev/usb/oh0) = %d\n", fd);
   if (fd < 0)
-  {
-    network_printf("Failed to open /dev/usb/oh0: ret %d\n", fd);
     return 1;
-  }
 
   TestGETDEVLIST(fd);
   // TestInsertHook(fd);
+  TestUnknown15(fd);
+  TestGetRhPortStatus20(fd);
   TestUnknown30(fd);
+  TestUnknown31(fd);
 
-  const int devicefd = IOS_Open("/dev/usb/oh0/46d/a03", IPC_OPEN_NONE);
-  if (fd < 0)
-  {
-    network_printf("Failed to open /dev/usb/oh0/46d/a03: ret %d\n", fd);
-    return 1;
-  }
-  TestSetAlternate(devicefd);
+  // const s32 devicefd = IOS_Open("/dev/usb/oh0/57e/308", IPC_OPEN_NONE);
+  // network_printf("IOS_Open() = %d\n", devicefd);
+  // if (devicefd < 0)
+    // return 1;
+  // TestSetAlternate(devicefd);
 
   IOS_Close(fd);
-  IOS_Close(devicefd);
+  // IOS_Close(devicefd);
 
   network_printf("Shutting down...\n");
   network_shutdown();
