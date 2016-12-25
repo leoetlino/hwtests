@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cstring>
 #include <vector>
 
@@ -110,33 +111,58 @@ void TestGetRhPortStatus20(const s32 fd)
   network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
 }
 
-void TestUnknown30(const s32 fd)
+static std::atomic<s32> s_callback_result{-99};
+
+s32 DevInsertHookIdCallback(const s32 result, void* userdata)
+{
+  s_callback_result.store(result);
+  return IPC_OK;
+}
+
+s32 TestUnknown30(const s32 fd)
 {
   network_printf("Testing USBV0_IOCTLV_DEVINSERTHOOKID\n");
 
   u16 vid = 0x057e;
   u16 pid = 0x0308;
-  u8 unknown = 0;
-  u8 data[4] = {1,2,3,4};
+  u8 want_new_device = 1;
+  u32 id = 0x12345678;
 
-  const s32 ret = IOS_IoctlvFormat(hId, fd, 30, "hhb:d", vid, pid, unknown, data, 4);
+  auto vec = (ioctlv*)iosAlloc(hId, sizeof(ioctlv) * 4);
+  auto pVid = (u16*)iosAlloc(hId, sizeof(vid));
+  *pVid = vid;
+  auto pPid = (u16*)iosAlloc(hId, sizeof(pid));
+  *pPid = pid;
+  auto pWantNew = (u8*)iosAlloc(hId, sizeof(want_new_device));
+  *pWantNew = want_new_device;
+  auto pId = (u32*)iosAlloc(hId, sizeof(id));
+  *pId = id;
+
+  vec[0].data = pVid;
+  vec[0].len = sizeof(vid);
+  vec[1].data = pPid;
+  vec[1].len = sizeof(pid);
+  vec[2].data = pWantNew;
+  vec[2].len = sizeof(want_new_device);
+  vec[3].data = pId;
+  vec[3].len = sizeof(id);
+
+  const s32 ret = IOS_IoctlvAsync(fd, 30, 3, 1, vec, DevInsertHookIdCallback, nullptr);
   network_printf("ret = %d\n", ret);
-  if (ret < 0)
-    return;
-
-  network_printf("buffer:\n%s\n", ArrayToString(data, sizeof(data)).c_str());
+  return *pId;
 }
 
-void TestUnknown31(const s32 fd)
+void TestUnknown31(const s32 fd, s32 hook_id)
 {
   network_printf("Testing USBV0_IOCTL_CANCEL_INSERT_HOOK\n");
 
-  u32 vid = 0x057e0308;
-
-  const s32 ret = IOS_Ioctl(fd, 31, &vid, sizeof(vid), nullptr, 0);
-  network_printf("ret = %d\n", ret);
-  if (ret < 0)
-    return;
+  const s32 ret = IOS_Ioctl(fd, 31, &hook_id, sizeof(hook_id), nullptr, 0);
+  network_printf("IOS_Ioctl(fd, 31, ...) = = %d\n", ret);
+  while (s_callback_result.load() == -99)
+  {
+    usleep(50000);
+  }
+  network_printf("callback_result = %d\n", s_callback_result.load());
 }
 
 int main()
@@ -166,8 +192,8 @@ int main()
   // TestInsertHook(fd);
   TestUnknown15(fd);
   TestGetRhPortStatus20(fd);
-  TestUnknown30(fd);
-  TestUnknown31(fd);
+  const s32 hook_id = TestUnknown30(fd);
+  TestUnknown31(fd, 0);
 
   // const s32 devicefd = IOS_Open("/dev/usb/oh0/57e/308", IPC_OPEN_NONE);
   // network_printf("IOS_Open() = %d\n", devicefd);
