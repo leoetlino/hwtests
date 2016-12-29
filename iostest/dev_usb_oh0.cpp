@@ -165,6 +165,14 @@ void TestUnknown31(const s32 fd, s32 hook_id)
   network_printf("callback_result = %d\n", s_callback_result.load());
 }
 
+void TestUnknown32(const s32 fd)
+{
+  network_printf("Testing USBV0_IOCTLV_UNKNOWN_32\n");
+
+  const s32 ret = IOS_IoctlvFormat(hId, fd, 32, "");
+  network_printf("ret = %d\n", ret);
+}
+
 int main()
 {
   if (IOS_GetVersion() != 36)
@@ -192,8 +200,9 @@ int main()
   // TestInsertHook(fd);
   TestUnknown15(fd);
   TestGetRhPortStatus20(fd);
-  const s32 hook_id = TestUnknown30(fd);
-  TestUnknown31(fd, 0);
+  // const s32 hook_id = TestUnknown30(fd);
+  // TestUnknown31(fd, hook_id);
+  TestUnknown32(fd);
 
   // const s32 devicefd = IOS_Open("/dev/usb/oh0/57e/308", IPC_OPEN_NONE);
   // network_printf("IOS_Open() = %d\n", devicefd);
