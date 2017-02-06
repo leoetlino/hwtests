@@ -158,7 +158,7 @@ int main()
     iosFree(hId, buf);
 
     // TestGETDEVPARAMS(fd, entry.device_id);
-    TestSETALTSETTING(fd, entry.device_id);
+    // TestSETALTSETTING(fd, entry.device_id);
     network_printf("\n");
   }
   //while (true);
